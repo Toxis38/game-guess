@@ -10,6 +10,8 @@ const SOLVED_PATH = path.join(__dirname, 'data', 'solved.json');
 const games = [
   ...JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'games-part1.json'), 'utf8')),
   ...JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'games-part2.json'), 'utf8')),
+  ...JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'games-part3.json'), 'utf8')),
+  ...JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'games-part4.json'), 'utf8')),
 ];
 
 function loadSolved() {
