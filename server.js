@@ -5,15 +5,35 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Load games
-const games = JSON.parse(
-  fs.readFileSync(path.join(__dirname, 'data', 'games.json'), 'utf8')
-);
+const GAMES_PATH = path.join(__dirname, 'data', 'games.json');
+const SOLVED_PATH = path.join(__dirname, 'data', 'solved.json');
+
+const games = JSON.parse(fs.readFileSync(GAMES_PATH, 'utf8'));
+
+function loadSolved() {
+  try {
+    if (fs.existsSync(SOLVED_PATH)) {
+      return new Set(JSON.parse(fs.readFileSync(SOLVED_PATH, 'utf8')));
+    }
+  } catch (e) {
+    console.error('Failed to load solved:', e.message);
+  }
+  return new Set();
+}
+
+function saveSolved(solvedSet) {
+  try {
+    fs.writeFileSync(SOLVED_PATH, JSON.stringify([...solvedSet], null, 2), 'utf8');
+  } catch (e) {
+    console.error('Failed to save solved:', e.message);
+  }
+}
+
+let solvedGames = loadSolved();
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// In-memory sessions (for simplicity)
 const sessions = new Map();
 
 function normalize(str) {
@@ -30,16 +50,12 @@ function isMatch(guess, game) {
   if (!nGuess) return false;
 
   const nName = normalize(game.name);
-
-  // Exact name
   if (nName === nGuess) return true;
 
-  // Aliases exact
   for (const alias of game.aliases || []) {
     if (normalize(alias) === nGuess) return true;
   }
 
-  // Partial match (guess is significant part of name/alias)
   if (nGuess.length >= 4) {
     if (nName.includes(nGuess) || nGuess.includes(nName)) return true;
     for (const alias of game.aliases || []) {
@@ -48,16 +64,28 @@ function isMatch(guess, game) {
     }
   }
 
-  // Short common abbreviations
   if (nGuess.length >= 3) {
-    if (nName.startsWith(nGuess) || nGuess.startsWith(nName.slice(0, 6))) return true;
+    if (nName.startsWith(nGuess)) return true;
   }
 
   return false;
 }
 
-function createSession() {
-  const game = games[Math.floor(Math.random() * games.length)];
+function getAvailableGames(mode) {
+  const isHard = mode === 'hard';
+  return games.filter((g) => {
+    if (solvedGames.has(g.name)) return false;
+    if (isHard) return !!g.hard;
+    return !g.hard;
+  });
+}
+
+function createSession(mode = 'normal') {
+  const available = getAvailableGames(mode);
+  if (available.length === 0) {
+    return null;
+  }
+  const game = available[Math.floor(Math.random() * available.length)];
   const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
   sessions.set(id, {
     game,
@@ -65,24 +93,37 @@ function createSession() {
     score: 0,
     finished: false,
     correct: false,
+    mode,
   });
   return id;
 }
 
-// API: start new game
 app.post('/api/new', (req, res) => {
-  const id = createSession();
+  const mode = (req.body && req.body.mode) === 'hard' ? 'hard' : 'normal';
+  const id = createSession(mode);
+
+  if (!id) {
+    return res.json({
+      error: true,
+      message:
+        mode === 'hard'
+          ? 'Все сложные игры уже отгаданы! Попробуй обычный режим или сбрось прогресс.'
+          : 'Все обычные игры уже отгаданы! Попробуй режим Хард или сбрось прогресс.',
+    });
+  }
+
   const session = sessions.get(id);
   res.json({
     sessionId: id,
-    hint: session.game.hints[0],
+    hints: [session.game.hints[0]],
     hintNumber: 1,
     totalHints: 3,
+    mode,
+    remaining: getAvailableGames(mode).length,
     message: 'Угадай игру по первой подсказке!',
   });
 });
 
-// API: guess
 app.post('/api/guess', (req, res) => {
   const { sessionId, guess } = req.body;
   if (!sessionId || !sessions.has(sessionId)) {
@@ -109,16 +150,20 @@ app.post('/api/guess', (req, res) => {
     session.score = points;
     session.finished = true;
     session.correct = true;
+
+    solvedGames.add(session.game.name);
+    saveSolved(solvedGames);
+
     return res.json({
       correct: true,
       finished: true,
       score: points,
       answer: session.game.name,
-      message: `Правильно! Это «${session.game.name}». Ты набрал ${points} баллов!`,
+      message: `Правильно! Это «${session.game.name}». +${points} баллов!`,
+      remaining: getAvailableGames(session.mode).length,
     });
   }
 
-  // Wrong guess
   session.hintIndex += 1;
 
   if (session.hintIndex >= 3) {
@@ -131,27 +176,45 @@ app.post('/api/guess', (req, res) => {
       score: 0,
       answer: session.game.name,
       message: `Поражение! Правильный ответ: «${session.game.name}».`,
-      hint: null,
+      hints: session.game.hints,
     });
   }
 
-  // Give next hint
+  const revealed = session.game.hints.slice(0, session.hintIndex + 1);
   res.json({
     correct: false,
     finished: false,
-    hint: session.game.hints[session.hintIndex],
+    hints: revealed,
     hintNumber: session.hintIndex + 1,
     totalHints: 3,
-    message: `Неверно. Вот подсказка №${session.hintIndex + 1}:`,
+    message: `Неверно. Подсказка №${session.hintIndex + 1}:`,
   });
 });
 
-// Health
+app.get('/api/stats', (req, res) => {
+  res.json({
+    total: games.length,
+    solved: solvedGames.size,
+    normalRemaining: getAvailableGames('normal').length,
+    hardRemaining: getAvailableGames('hard').length,
+  });
+});
+
+app.post('/api/reset', (req, res) => {
+  solvedGames = new Set();
+  saveSolved(solvedGames);
+  res.json({ ok: true, message: 'Прогресс сброшен. Все игры снова доступны.' });
+});
+
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, games: games.length });
+  res.json({
+    ok: true,
+    games: games.length,
+    solved: solvedGames.size,
+  });
 });
 
 app.listen(PORT, () => {
-  console.log(`Game Guess server running on http://localhost:${PORT}`);
-  console.log(`Loaded ${games.length} games`);
+  console.log(`Game Guess server on http://localhost:${PORT}`);
+  console.log(`Games: ${games.length} | Solved: ${solvedGames.size}`);
 });
