@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Угадай игру</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🎮 Угадай игру</h1>
+      <p class="subtitle">3 подсказки · 100 / 80 / 50 баллов · иначе поражение</p>
+    </header>
+
+    <main>
+      <div id="start-screen" class="screen">
+        <p>Я загадаю одну из ~100 популярных игр.<br>Ты угадываешь по подсказкам.</p>
+        <p class="rules">
+          1-я подсказка — <strong>100</strong> баллов<br>
+          2-я подсказка — <strong>80</strong> баллов<br>
+          3-я подсказка — <strong>50</strong> баллов<br>
+          Не угадал после 3-й — поражение
+        </p>
+        <button id="btn-start" class="btn primary">Начать игру</button>
+      </div>
+
+      <div id="game-screen" class="screen hidden">
+        <div class="hint-box">
+          <div class="hint-label">Подсказка <span id="hint-num">1</span> из 3</div>
+          <p id="hint-text" class="hint-text"></p>
+        </div>
+
+        <div class="input-row">
+          <input type="text" id="guess-input" placeholder="Напиши название игры..." autocomplete="off" />
+          <button id="btn-guess" class="btn primary">Угадать</button>
+        </div>
+
+        <p id="feedback" class="feedback"></p>
+      </div>
+
+      <div id="result-screen" class="screen hidden">
+        <div id="result-icon" class="result-icon"></div>
+        <h2 id="result-title"></h2>
+        <p id="result-score" class="score"></p>
+        <p id="result-answer" class="answer"></p>
+        <button id="btn-again" class="btn primary">Играть ещё раз</button>
+      </div>
+    </main>
+
+    <footer>
+      <p>Можно писать как угодно: «киберпанк», «cyberpunk», «гта 5», «ведьмак» и т.д.</p>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
