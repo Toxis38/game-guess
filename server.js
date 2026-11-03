@@ -5,10 +5,12 @@ const fs = require('fs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const GAMES_PATH = path.join(__dirname, 'data', 'games.json');
 const SOLVED_PATH = path.join(__dirname, 'data', 'solved.json');
 
-const games = JSON.parse(fs.readFileSync(GAMES_PATH, 'utf8'));
+const games = [
+  ...JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'games-part1.json'), 'utf8')),
+  ...JSON.parse(fs.readFileSync(path.join(__dirname, 'data', 'games-part2.json'), 'utf8')),
+];
 
 function loadSolved() {
   try {
