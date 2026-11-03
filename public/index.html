@@ -11,24 +11,31 @@
     <header>
       <h1>🎮 Угадай игру</h1>
       <p class="subtitle">3 подсказки · 100 / 80 / 50 баллов · иначе поражение</p>
+      <p id="stats-line" class="stats-line"></p>
     </header>
 
     <main>
       <div id="start-screen" class="screen">
-        <p>Я загадаю одну из ~100 популярных игр.<br>Ты угадываешь по подсказкам.</p>
+        <p>Я загадаю игру из большой базы.<br>Отгаданные игры больше не повторяются.</p>
         <p class="rules">
           1-я подсказка — <strong>100</strong> баллов<br>
           2-я подсказка — <strong>80</strong> баллов<br>
           3-я подсказка — <strong>50</strong> баллов<br>
           Не угадал после 3-й — поражение
         </p>
-        <button id="btn-start" class="btn primary">Начать игру</button>
+
+        <div class="mode-select">
+          <button id="btn-normal" class="btn primary mode-btn">Обычный режим</button>
+          <button id="btn-hard" class="btn hard mode-btn">Хард режим</button>
+        </div>
+        <p class="mode-hint">Хард — менее известные и нишевые игры</p>
+        <button id="btn-reset" class="btn reset-btn">Сбросить прогресс</button>
       </div>
 
       <div id="game-screen" class="screen hidden">
         <div class="hint-box">
-          <div class="hint-label">Подсказка <span id="hint-num">1</span> из 3</div>
-          <p id="hint-text" class="hint-text"></p>
+          <div class="hint-label">Подсказки <span id="hint-num">1</span> из 3</div>
+          <div id="hints-list" class="hints-list"></div>
         </div>
 
         <div class="input-row">
@@ -44,7 +51,10 @@
         <h2 id="result-title"></h2>
         <p id="result-score" class="score"></p>
         <p id="result-answer" class="answer"></p>
-        <button id="btn-again" class="btn primary">Играть ещё раз</button>
+        <div class="result-actions">
+          <button id="btn-again" class="btn primary">Ещё раз (тот же режим)</button>
+          <button id="btn-menu" class="btn secondary">В меню</button>
+        </div>
       </div>
     </main>
 

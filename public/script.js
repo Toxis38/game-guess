@@ -1,16 +1,21 @@
 let sessionId = null;
+let currentMode = 'normal';
 
 const startScreen = document.getElementById('start-screen');
 const gameScreen = document.getElementById('game-screen');
 const resultScreen = document.getElementById('result-screen');
 
-const btnStart = document.getElementById('btn-start');
+const btnNormal = document.getElementById('btn-normal');
+const btnHard = document.getElementById('btn-hard');
 const btnGuess = document.getElementById('btn-guess');
 const btnAgain = document.getElementById('btn-again');
+const btnMenu = document.getElementById('btn-menu');
+const btnReset = document.getElementById('btn-reset');
 const guessInput = document.getElementById('guess-input');
-const hintText = document.getElementById('hint-text');
+const hintsList = document.getElementById('hints-list');
 const hintNum = document.getElementById('hint-num');
 const feedback = document.getElementById('feedback');
+const statsLine = document.getElementById('stats-line');
 
 const resultIcon = document.getElementById('result-icon');
 const resultTitle = document.getElementById('result-title');
@@ -24,17 +29,49 @@ function show(screen) {
   screen.classList.remove('hidden');
 }
 
-async function startGame() {
+function renderHints(hints) {
+  hintsList.innerHTML = '';
+  hints.forEach((text, i) => {
+    const div = document.createElement('div');
+    div.className = 'hint-item' + (i === hints.length - 1 ? ' newest' : '');
+    div.textContent = text;
+    hintsList.appendChild(div);
+  });
+}
+
+async function loadStats() {
+  try {
+    const res = await fetch('/api/stats');
+    const data = await res.json();
+    statsLine.textContent = `Всего игр: ${data.total} · Отгадано: ${data.solved} · Обычных осталось: ${data.normalRemaining} · Хард: ${data.hardRemaining}`;
+  } catch (e) {
+    statsLine.textContent = '';
+  }
+}
+
+async function startGame(mode) {
+  currentMode = mode || currentMode;
   feedback.textContent = '';
   guessInput.value = '';
   try {
-    const res = await fetch('/api/new', { method: 'POST' });
+    const res = await fetch('/api/new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mode: currentMode }),
+    });
     const data = await res.json();
+
+    if (data.error) {
+      alert(data.message);
+      return;
+    }
+
     sessionId = data.sessionId;
-    hintText.textContent = data.hint;
+    renderHints(data.hints);
     hintNum.textContent = data.hintNumber;
     show(gameScreen);
     guessInput.focus();
+    loadStats();
   } catch (e) {
     alert('Ошибка соединения с сервером');
   }
@@ -71,10 +108,10 @@ async function submitGuess() {
         resultAnswer.textContent = `Правильный ответ: «${data.answer}»`;
       }
       show(resultScreen);
+      loadStats();
     } else {
-      // next hint
       feedback.textContent = data.message;
-      hintText.textContent = data.hint;
+      renderHints(data.hints);
       hintNum.textContent = data.hintNumber;
       guessInput.value = '';
       guessInput.focus();
@@ -86,10 +123,29 @@ async function submitGuess() {
   }
 }
 
-btnStart.addEventListener('click', startGame);
-btnAgain.addEventListener('click', startGame);
+async function resetProgress() {
+  if (!confirm('Сбросить весь прогресс? Все отгаданные игры снова появятся.')) return;
+  try {
+    await fetch('/api/reset', { method: 'POST' });
+    loadStats();
+    alert('Прогресс сброшен');
+  } catch (e) {
+    alert('Ошибка');
+  }
+}
+
+btnNormal.addEventListener('click', () => startGame('normal'));
+btnHard.addEventListener('click', () => startGame('hard'));
+btnAgain.addEventListener('click', () => startGame(currentMode));
+btnMenu.addEventListener('click', () => {
+  show(startScreen);
+  loadStats();
+});
 btnGuess.addEventListener('click', submitGuess);
+btnReset.addEventListener('click', resetProgress);
 
 guessInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') submitGuess();
 });
+
+loadStats();
